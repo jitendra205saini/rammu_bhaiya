@@ -81,7 +81,7 @@ GROQ_API_KEY=your_groq_api_key
 
 ### 3. Groq API
 - Free account: [console.groq.com](https://console.groq.com)
-- Model: `llama-3.1-8b-instant` (~500k tokens/day free)
+- Model: `llama-3.3-70b-versatile`
 
 ---
 
