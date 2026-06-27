@@ -1,4 +1,6 @@
 import os
+import sys
+import traceback
 import discord
 from discord.ext import commands
 from groq import Groq
@@ -10,25 +12,20 @@ load_dotenv()
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-SYSTEM_PROMPT = """Aap "Rammu Bhai" ho — gaming server ke Ram bhakt Bot Bhaiya. Creator: hunternumber01.
+if not DISCORD_TOKEN:
+    print("ERROR: DISCORD_TOKEN environment variable set nahi hai!")
+    sys.exit(1)
+if not GROQ_API_KEY:
+    print("ERROR: GROQ_API_KEY environment variable set nahi hai!")
+    sys.exit(1)
 
-=== SABSE ZAROORI NIYAM ===
-- HAMESHA CHHOTA jawab do — max 3-4 lines. Kabhi bhi lamba paragraph mat likho.
-- Jis user ne message kiya hai, uska naam + "ji" lagao. Jaise "hunternumber01 ji" ya "[username] ji". Kabhi sirf "aap ji" mat likho — naam zaroor lo.
-- Hinglish mein baat karo (Hindi+English mix), casual gaming style.
-
-=== GAMING KNOWLEDGE ===
-GTA 6 (Vice City, Jason+Lucia, 2025-26), BGMI/PUBG, Valorant, CS:GO, Minecraft, Fortnite — sab jaante ho.
-Kabhi "noob" mat kaho — "practice karo, pro ban jaoge" kaho.
-
-=== PERSONALITY ===
-- Gaali mile toh: "Ram Ram [naam] ji! Aapki gaali prasad lagti hai 🙏 Agli game mein clutch maaro!"
-- Game haarne par: "Gita kehti hai [naam] ji — karm karo, phal ki chinta nahi. Next game better hoga!"
-- Greeting (Hi/Hello/Hey/Ram Ram/Jai Shree Ram aaye): "Jai Shree Ram [naam] ji! 🙏 Kya game kheloge aaj?"
-- Koi "Jai Shree Ram" bole: "Jai Shree Ram [naam] ji! 🙏" se jawab do
-- Koi bye/alvida/jaa raha hoon bole: "Jai Shree Ram [naam] ji! 🙏 Dobara aana, bye byeee!"
-- Creator puchha: "hunternumber01 ji ne banaya hai mujhe! Jai Shree Ram! 🙏"
-- BAAKI saari normal baaton mein "Jai Shree Ram" MAT likho — sirf upar wale cases mein likhna hai."""
+SYSTEM_PROMPT = """Tu "Rammu Bhai" hai — Ram bhakt gaming bot. Creator: hunternumber01.
+Niyam: Hinglish, max 3 lines, hamesha "[username] ji" likh (kabhi sirf "aap ji" nahi).
+Games: GTA 6 (Vice City, Jason+Lucia, 2026), BGMI, Valorant, CS:GO, Minecraft. "noob" mat bol.
+Gaali aaye → "prasad lagti hai 🙏 clutch maaro!"
+Haarne par → "karm karo, phal ki chinta nahi. Next game better!"
+Greeting/JSR/bye → "Jai Shree Ram [naam] ji! 🙏" (sirf in 3 cases mein, baaki time nahi)
+Creator puchha → hunternumber01 ji ne banaya!"""
 
 groq_client = Groq(api_key=GROQ_API_KEY)
 
@@ -37,7 +34,8 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Conversation history per channel (in-memory)
 conversation_history = defaultdict(list)
-MAX_HISTORY = 10
+MAX_HISTORY = 5
+MAX_CHANNELS = 500  # memory leak rok: zyada channels accumulate na hon
 
 
 @bot.event
@@ -78,6 +76,10 @@ async def on_message(message):
             channel_id = str(message.channel.id)
 
             # Add to conversation history
+            if channel_id not in conversation_history and len(conversation_history) >= MAX_CHANNELS:
+                oldest = next(iter(conversation_history))
+                del conversation_history[oldest]
+
             conversation_history[channel_id].append({
                 "role": "user",
                 "content": f"{message.author.display_name}: {content}"
@@ -89,12 +91,12 @@ async def on_message(message):
 
             try:
                 response = groq_client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
+                    model="llama-3.1-8b-instant",
                     messages=[
                         {"role": "system", "content": SYSTEM_PROMPT},
                         *conversation_history[channel_id]
                     ],
-                    max_tokens=180,
+                    max_tokens=100,
                     temperature=0.85
                 )
 
@@ -114,7 +116,7 @@ async def on_message(message):
                     await message.reply(reply)
 
             except Exception as e:
-                print(f"Error: {e}")
+                print(f"Error: {e}\n{traceback.format_exc()}")
                 await message.reply(
                     "Ram Ram! 🙏 Thodi takleef aa gayi server mein. "
                     "Hanuman ji se madad maang raha hoon, thoda ruko! Jai Shree Ram!"
@@ -152,7 +154,7 @@ async def gta6_info(ctx):
         "🎮 **GTA 6 — Rammu Bhai ki Report!**\n\n"
         "🗺️ **Map:** Vice City (Miami inspired) — bahut bada map aane wala hai!\n"
         "👥 **Characters:** Jason aur Lucia — pehli baar female protagonist!\n"
-        "📅 **Release:** 2025-26 ki khabar hai, par Ram ji chahein toh jaldi aaye!\n"
+        "📅 **Release:** 2026 mein release expected hai, par Ram ji chahein toh jaldi aaye!\n"
         "💰 **Price:** Probably $70+ hoga — save karo abhi se!\n\n"
         "Tab tak GTA 5 Online mein practice karo bhai! 😄\n"
         "**Jai Shree Ram! 🙏**"
