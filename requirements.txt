@@ -1,4 +1,5 @@
 discord.py==2.3.2
 audioop-lts==0.2.1
 groq==0.11.0
+httpx==0.27.2
 python-dotenv==1.0.1
